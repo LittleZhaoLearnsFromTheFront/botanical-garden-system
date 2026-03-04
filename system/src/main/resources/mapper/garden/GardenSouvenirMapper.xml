@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.garden.GardenSouvenirMapper">
+
+    <resultMap id="GardenSouvenirResult" type="GardenSouvenir">
+        <id     property="souvenirId"   column="souvenir_id"/>
+        <result property="souvenirName" column="souvenir_name"/>
+        <result property="souvenirCode" column="souvenir_code"/>
+        <result property="category"     column="category"/>
+        <result property="price"        column="price"/>
+        <result property="stock"        column="stock"/>
+        <result property="status"       column="status"/>
+        <result property="delFlag"      column="del_flag"/>
+        <result property="createBy"     column="create_by"/>
+        <result property="createTime"   column="create_time"/>
+        <result property="updateBy"     column="update_by"/>
+        <result property="updateTime"   column="update_time"/>
+        <result property="remark"       column="remark"/>
+    </resultMap>
+
+    <sql id="selectSouvenirVo">
+        select s.souvenir_id, s.souvenir_name, s.souvenir_code, s.category,
+               s.price, s.stock, s.status, s.del_flag,
+               s.create_by, s.create_time, s.update_by, s.update_time, s.remark
+        from garden_souvenir s
+    </sql>
+
+    <select id="selectSouvenirById" parameterType="Long" resultMap="GardenSouvenirResult">
+        <include refid="selectSouvenirVo"/>
+        where s.souvenir_id = #{souvenirId}
+    </select>
+
+    <select id="selectSouvenirList" parameterType="GardenSouvenir" resultMap="GardenSouvenirResult">
+        <include refid="selectSouvenirVo"/>
+        where s.del_flag = '0'
+        <if test="souvenirName != null and souvenirName != ''">
+            and s.souvenir_name like concat('%', #{souvenirName}, '%')
+        </if>
+        <if test="souvenirCode != null and souvenirCode != ''">
+            and s.souvenir_code like concat('%', #{souvenirCode}, '%')
+        </if>
+        <if test="category != null and category != ''">
+            and s.category = #{category}
+        </if>
+        <if test="status != null and status != ''">
+            and s.status = #{status}
+        </if>
+        order by s.souvenir_id desc
+    </select>
+
+    <insert id="insertSouvenir" parameterType="GardenSouvenir" useGeneratedKeys="true" keyProperty="souvenirId">
+        insert into garden_souvenir(
+          <if test="souvenirName != null and souvenirName != ''">souvenir_name,</if>
+          <if test="souvenirCode != null and souvenirCode != ''">souvenir_code,</if>
+          <if test="category != null and category != ''">category,</if>
+          <if test="price != null">price,</if>
+          <if test="stock != null">stock,</if>
+          <if test="status != null and status != ''">status,</if>
+          <if test="remark != null and remark != ''">remark,</if>
+          <if test="createBy != null and createBy != ''">create_by,</if>
+          create_time
+        ) values (
+          <if test="souvenirName != null and souvenirName != ''">#{souvenirName},</if>
+          <if test="souvenirCode != null and souvenirCode != ''">#{souvenirCode},</if>
+          <if test="category != null and category != ''">#{category},</if>
+          <if test="price != null">#{price},</if>
+          <if test="stock != null">#{stock},</if>
+          <if test="status != null and status != ''">#{status},</if>
+          <if test="remark != null and remark != ''">#{remark},</if>
+          <if test="createBy != null and createBy != ''">#{createBy},</if>
+          sysdate()
+        )
+    </insert>
+
+    <update id="updateSouvenir" parameterType="GardenSouvenir">
+        update garden_souvenir
+        <set>
+            <if test="souvenirName != null and souvenirName != ''">souvenir_name = #{souvenirName},</if>
+            <if test="souvenirCode != null">souvenir_code = #{souvenirCode},</if>
+            <if test="category != null">category = #{category},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="stock != null">stock = #{stock},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where souvenir_id = #{souvenirId}
+    </update>
+
+    <delete id="deleteSouvenirById" parameterType="Long">
+        update garden_souvenir set del_flag = '2' where souvenir_id = #{souvenirId}
+    </delete>
+
+    <delete id="deleteSouvenirByIds" parameterType="Long">
+        update garden_souvenir set del_flag = '2' where souvenir_id in
+        <foreach item="souvenirId" collection="array" open="(" separator="," close=")">
+            #{souvenirId}
+        </foreach>
+    </delete>
+
+</mapper>
+

@@ -1,0 +1,12 @@
+{
+  "name": "ai-system",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Use scripts/dev or run pnpm -F ui dev & pnpm -F server dev'",
+    "dev:ui": "pnpm --filter ui dev",
+    "dev:server": "pnpm --filter server dev",
+    "build": "pnpm --filter @ai-system/types build && pnpm --filter ui build && pnpm --filter server build",
+    "build:types": "pnpm --filter @ai-system/types build"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

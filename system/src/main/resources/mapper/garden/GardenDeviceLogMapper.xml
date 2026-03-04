@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.garden.GardenDeviceLogMapper">
+
+    <resultMap id="GardenDeviceLogResult" type="GardenDeviceLog">
+        <id     property="logId"        column="log_id"/>
+        <result property="workOrderId"  column="work_order_id"/>
+        <result property="deviceId"     column="device_id"/>
+        <result property="deviceName"   column="device_name"/>
+        <result property="executorId"   column="executor_id"/>
+        <result property="executorName" column="executor_name"/>
+        <result property="taskType"     column="task_type"/>
+        <result property="title"        column="title"/>
+        <result property="content"      column="content"/>
+        <result property="resultDesc"   column="result_desc"/>
+        <result property="startTime"    column="start_time"/>
+        <result property="finishTime"   column="finish_time"/>
+        <result property="createTime"   column="create_time"/>
+    </resultMap>
+
+    <sql id="selectDeviceLogVo">
+        select l.log_id, l.work_order_id, l.device_id, d.device_name,
+               l.executor_id, l.executor_name, l.task_type,
+               w.title, l.content, l.result_desc, l.start_time, l.finish_time, l.create_time
+        from garden_device_log l
+        left join garden_device d on d.device_id = l.device_id
+        left join garden_work_order w on w.work_order_id = l.work_order_id
+    </sql>
+
+    <select id="selectDeviceLogList" parameterType="GardenDeviceLog" resultMap="GardenDeviceLogResult">
+        <include refid="selectDeviceLogVo"/>
+        <where>
+            <if test="deviceName != null and deviceName != ''">
+                and d.device_name like concat('%', #{deviceName}, '%')
+            </if>
+            <if test="executorName != null and executorName != ''">
+                and l.executor_name like concat('%', #{executorName}, '%')
+            </if>
+        </where>
+        order by l.create_time desc
+    </select>
+
+    <insert id="insertDeviceLog" parameterType="GardenDeviceLog">
+        insert into garden_device_log(
+          work_order_id, device_id, executor_id, executor_name, task_type,
+          content, result_desc, start_time, finish_time, create_time
+        ) values (
+          #{workOrderId}, #{deviceId}, #{executorId}, #{executorName}, #{taskType},
+          #{content}, #{resultDesc}, #{startTime}, #{finishTime}, #{createTime}
+        )
+    </insert>
+
+</mapper>
+

@@ -1,0 +1,2 @@
+# 根目录依赖（pnpm install 会在此生成 node_modules）
+/node_modules

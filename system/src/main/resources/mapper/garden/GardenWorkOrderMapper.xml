@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.garden.GardenWorkOrderMapper">
+
+    <resultMap type="GardenWorkOrder" id="GardenWorkOrderResult">
+        <id     property="workOrderId"  column="work_order_id" />
+        <result property="title"        column="title"         />
+        <result property="taskType"     column="task_type"     />
+        <result property="targetType"   column="target_type"   />
+        <result property="areaId"       column="area_id"       />
+        <result property="plantId"      column="plant_id"      />
+        <result property="deviceId"     column="device_id"     />
+        <result property="content"      column="content"       />
+        <result property="priority"     column="priority"      />
+        <result property="planTime"     column="plan_time"     />
+        <result property="deadline"     column="deadline"      />
+        <result property="publisherId"  column="publisher_id"  />
+        <result property="executorId"   column="executor_id"   />
+        <result property="status"       column="status"        />
+        <result property="acceptTime"   column="accept_time"   />
+        <result property="finishTime"   column="finish_time"   />
+        <result property="resultDesc"   column="result_desc"   />
+        <result property="areaName"     column="area_name"     />
+        <result property="plantName"    column="plant_name"    />
+        <result property="deviceName"   column="device_name"   />
+        <result property="publisherName" column="publisher_name" />
+        <result property="executorName"  column="executor_name"  />
+        <result property="createBy"     column="create_by"     />
+        <result property="createTime"   column="create_time"   />
+        <result property="updateBy"     column="update_by"     />
+        <result property="updateTime"   column="update_time"   />
+        <result property="remark"       column="remark"        />
+    </resultMap>
+
+    <sql id="selectWorkOrderVo">
+        select w.work_order_id, w.title, w.task_type, w.target_type, w.area_id, w.plant_id, w.device_id,
+               w.content, w.priority, w.plan_time, w.deadline, w.publisher_id, w.executor_id, w.status,
+               w.accept_time, w.finish_time, w.result_desc, w.create_by, w.create_time, w.update_by, w.update_time, w.remark,
+               a.area_name, p.plant_name, d.device_name,
+               u1.nick_name as publisher_name, u2.nick_name as executor_name
+        from garden_work_order w
+        left join garden_area a on a.area_id = w.area_id and a.del_flag = '0'
+        left join garden_plant p on p.plant_id = w.plant_id and p.del_flag = '0'
+        left join garden_device d on d.device_id = w.device_id and d.del_flag = '0'
+        left join sys_user u1 on u1.user_id = w.publisher_id and u1.del_flag = '0'
+        left join sys_user u2 on u2.user_id = w.executor_id and u2.del_flag = '0'
+    </sql>
+
+    <select id="selectWorkOrderById" parameterType="Long" resultMap="GardenWorkOrderResult">
+        <include refid="selectWorkOrderVo"/>
+        where w.work_order_id = #{workOrderId}
+    </select>
+
+    <select id="selectWorkOrderList" parameterType="GardenWorkOrder" resultMap="GardenWorkOrderResult">
+        <include refid="selectWorkOrderVo"/>
+        <where>
+            <if test="title != null and title != ''">
+                and w.title like concat('%', #{title}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                and w.status = #{status}
+            </if>
+            <if test="executorId != null">
+                and w.executor_id = #{executorId}
+            </if>
+            <if test="publisherId != null">
+                and w.publisher_id = #{publisherId}
+            </if>
+            <if test="taskType != null and taskType != ''">
+                and w.task_type = #{taskType}
+            </if>
+            <if test="targetType != null and targetType != ''">
+                and w.target_type = #{targetType}
+            </if>
+        </where>
+        order by w.work_order_id desc
+    </select>
+
+    <insert id="insertWorkOrder" parameterType="GardenWorkOrder" useGeneratedKeys="true" keyProperty="workOrderId">
+        insert into garden_work_order(
+            <if test="title != null and title != ''">title,</if>
+            <if test="taskType != null and taskType != ''">task_type,</if>
+            <if test="targetType != null and targetType != ''">target_type,</if>
+            <if test="areaId != null">area_id,</if>
+            <if test="plantId != null">plant_id,</if>
+            <if test="deviceId != null">device_id,</if>
+            <if test="content != null">content,</if>
+            <if test="priority != null and priority != ''">priority,</if>
+            <if test="planTime != null">plan_time,</if>
+            <if test="deadline != null">deadline,</if>
+            <if test="publisherId != null">publisher_id,</if>
+            <if test="executorId != null">executor_id,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="title != null and title != ''">#{title},</if>
+            <if test="taskType != null and taskType != ''">#{taskType},</if>
+            <if test="targetType != null and targetType != ''">#{targetType},</if>
+            <if test="areaId != null">#{areaId},</if>
+            <if test="plantId != null">#{plantId},</if>
+            <if test="deviceId != null">#{deviceId},</if>
+            <if test="content != null">#{content},</if>
+            <if test="priority != null and priority != ''">#{priority},</if>
+            <if test="planTime != null">#{planTime},</if>
+            <if test="deadline != null">#{deadline},</if>
+            <if test="publisherId != null">#{publisherId},</if>
+            <if test="executorId != null">#{executorId},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateWorkOrder" parameterType="GardenWorkOrder">
+        update garden_work_order
+        <set>
+            <if test="title != null and title != ''">title = #{title},</if>
+            <if test="taskType != null and taskType != ''">task_type = #{taskType},</if>
+            <if test="targetType != null and targetType != ''">target_type = #{targetType},</if>
+            <if test="areaId != null">area_id = #{areaId},</if>
+            <if test="plantId != null">plant_id = #{plantId},</if>
+            <if test="deviceId != null">device_id = #{deviceId},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="priority != null and priority != ''">priority = #{priority},</if>
+            <if test="planTime != null">plan_time = #{planTime},</if>
+            <if test="deadline != null">deadline = #{deadline},</if>
+            <if test="publisherId != null">publisher_id = #{publisherId},</if>
+            <if test="executorId != null">executor_id = #{executorId},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="acceptTime != null">accept_time = #{acceptTime},</if>
+            <if test="finishTime != null">finish_time = #{finishTime},</if>
+            <if test="resultDesc != null">result_desc = #{resultDesc},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where work_order_id = #{workOrderId}
+    </update>
+
+    <update id="updateWorkOrderStatus" parameterType="GardenWorkOrder">
+        update garden_work_order
+        <set>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="acceptTime != null">accept_time = #{acceptTime},</if>
+            <if test="finishTime != null">finish_time = #{finishTime},</if>
+            <if test="resultDesc != null">result_desc = #{resultDesc},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where work_order_id = #{workOrderId}
+    </update>
+
+    <delete id="deleteWorkOrderById" parameterType="Long">
+        delete from garden_work_order where work_order_id = #{workOrderId}
+    </delete>
+
+    <delete id="deleteWorkOrderByIds" parameterType="Long">
+        delete from garden_work_order where work_order_id in
+        <foreach item="workOrderId" collection="array" open="(" separator="," close=")">
+            #{workOrderId}
+        </foreach>
+    </delete>
+
+</mapper>
+

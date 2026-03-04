@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.garden.GardenPlantLogMapper">
+
+    <resultMap id="GardenPlantLogResult" type="GardenPlantLog">
+        <id     property="logId"        column="log_id"/>
+        <result property="workOrderId"  column="work_order_id"/>
+        <result property="plantId"      column="plant_id"/>
+        <result property="plantName"    column="plant_name"/>
+        <result property="executorId"   column="executor_id"/>
+        <result property="executorName" column="executor_name"/>
+        <result property="taskType"     column="task_type"/>
+        <result property="title"        column="title"/>
+        <result property="content"      column="content"/>
+        <result property="resultDesc"   column="result_desc"/>
+        <result property="startTime"    column="start_time"/>
+        <result property="finishTime"   column="finish_time"/>
+        <result property="createTime"   column="create_time"/>
+    </resultMap>
+
+    <sql id="selectPlantLogVo">
+        select l.log_id, l.work_order_id, l.plant_id, p.plant_name,
+               l.executor_id, l.executor_name, l.task_type,
+               w.title, l.content, l.result_desc, l.start_time, l.finish_time, l.create_time
+        from garden_plant_log l
+        left join garden_plant p on p.plant_id = l.plant_id
+        left join garden_work_order w on w.work_order_id = l.work_order_id
+    </sql>
+
+    <select id="selectPlantLogList" parameterType="GardenPlantLog" resultMap="GardenPlantLogResult">
+        <include refid="selectPlantLogVo"/>
+        <where>
+            <if test="plantName != null and plantName != ''">
+                and p.plant_name like concat('%', #{plantName}, '%')
+            </if>
+            <if test="executorName != null and executorName != ''">
+                and l.executor_name like concat('%', #{executorName}, '%')
+            </if>
+        </where>
+        order by l.create_time desc
+    </select>
+
+    <insert id="insertPlantLog" parameterType="GardenPlantLog">
+        insert into garden_plant_log(
+          work_order_id, plant_id, executor_id, executor_name, task_type,
+          content, result_desc, start_time, finish_time, create_time
+        ) values (
+          #{workOrderId}, #{plantId}, #{executorId}, #{executorName}, #{taskType},
+          #{content}, #{resultDesc}, #{startTime}, #{finishTime}, #{createTime}
+        )
+    </insert>
+
+</mapper>
+

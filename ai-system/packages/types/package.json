@@ -1,0 +1,26 @@
+{
+  "name": "@ai-system/types",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepare": "pnpm run build"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  },
+  "files": [
+    "dist"
+  ]
+}
