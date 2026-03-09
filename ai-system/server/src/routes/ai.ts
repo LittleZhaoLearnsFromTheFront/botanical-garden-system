@@ -7,6 +7,7 @@ import { sessionEntity } from '../entity/session.entity.ts';
 import { messageEntity } from '../entity/message.entity.ts';
 import pkg from '@prisma/client';
 import type { MessageRole, Prisma } from '@prisma/client';
+import Config from '../lib/Config.ts';
 const { MessageRole: MessageRoleEnum } = pkg;
 
 const router = Router();
@@ -29,15 +30,26 @@ const buildAIRequest = (body: any): AIRequest => {
         if (!msg.role || !msg.content) {
             throw new Error('Each message must have role and content');
         }
-        if (![AIMessageRole.SYSTEM, AIMessageRole.USER, AIMessageRole.ASSISTANT].includes(msg.role)) {
-            throw new Error('Message role must be system, user, or assistant');
+        // 兼容大小写与字符串/枚举：统一转成大写字符串再校验
+        const roleUpper = String(msg.role).toUpperCase();
+        const allowRoles = [AIMessageRole.SYSTEM, AIMessageRole.USER, AIMessageRole.ASSISTANT].map(r =>
+            String(r).toUpperCase()
+        );
+        if (!allowRoles.includes(roleUpper)) {
+            throw new Error('Message role must be SYSTEM, USER, or ASSISTANT');
         }
         return {
-            role: msg.role as AIMessageRole,
+            role: roleUpper as AIMessageRole,
             content: String(msg.content)
         };
     });
-
+    logger.info({
+        messages: validMessages,
+        model,
+        temperature,
+        max_tokens,
+        stream
+    });
     return {
         messages: validMessages,
         model,
@@ -144,6 +156,13 @@ const handleStreamResponse = async (
     }
 };
 
+type WorkOrderActionDecision = {
+    action: 'FINISH_WORK_ORDER' | 'ACCEPT_WORK_ORDER' | 'CANCEL_WORK_ORDER' | 'NONE';
+    workOrderId: number | null;
+    triggered: boolean;
+    reason?: string;
+};
+
 const handleChatRequest = async (userId: string, provider: string, body: any, res: Response) => {
     const validationError = validateRequestBody(body);
     if (validationError) {
@@ -172,6 +191,57 @@ const handleChatRequest = async (userId: string, provider: string, body: any, re
         await recordMessage(session.id, MessageRoleEnum.USER, lastUserMessage, provider, request.model);
     }
 
+    // 先由模型判断是否需要触发工单动作（例如完成工单）
+    const enableWorkOrderAction = !!(body && body.enableWorkOrderAction);
+    let actionDecision: WorkOrderActionDecision = {
+        action: 'NONE',
+        workOrderId: null,
+        triggered: false,
+    };
+    if (enableWorkOrderAction) {
+        try {
+            actionDecision = await decideWorkOrderAction(provider, request, lastUserMessage || '');
+        } catch (e: any) {
+            logger.warn({ error: e?.message }, 'decide work order action failed');
+        }
+    }
+
+    // 如果已经由动作判断触发了实际操作（例如完成工单），则直接返回简要结果，不再生成普通对话回答
+    if (enableWorkOrderAction && actionDecision.triggered) {
+        let content = '已根据你的指令执行了相应操作。请刷新页面！';
+        if (actionDecision.workOrderId) {
+            if (actionDecision.action === 'FINISH_WORK_ORDER') {
+                content = `已根据你的指令，将工单【${actionDecision.workOrderId}】标记为完成。请刷新页面！`;
+            } else if (actionDecision.action === 'ACCEPT_WORK_ORDER') {
+                content = `已为你接单工单【${actionDecision.workOrderId}】。请刷新页面！`;
+            } else if (actionDecision.action === 'CANCEL_WORK_ORDER') {
+                content = `已为你取消工单【${actionDecision.workOrderId}】。请刷新页面！`;
+            }
+        }
+
+        await recordMessage(
+            session.id,
+            MessageRoleEnum.ASSISTANT,
+            content,
+            provider,
+            request.model || undefined
+        );
+
+        res.json({
+            success: true,
+            data: {
+                content,
+                model: request.model || 'default',
+                sessionId: session.id,
+                action: actionDecision.action,
+                actionWorkOrderId: actionDecision.workOrderId,
+                actionTriggered: actionDecision.triggered,
+                actionReason: actionDecision.reason,
+            },
+        });
+        return;
+    }
+
     if (request.stream) {
         await handleStreamResponse(provider, request, res, {
             sessionId: session.id,
@@ -180,6 +250,7 @@ const handleChatRequest = async (userId: string, provider: string, body: any, re
         return;
     }
 
+    // 再生成正常的 AI 回复
     const response = await AIService.chat(provider, request);
 
     await recordMessage(
@@ -201,9 +272,207 @@ const handleChatRequest = async (userId: string, provider: string, body: any, re
         success: true,
         data: {
             ...response,
-            sessionId: session.id
+            sessionId: session.id,
+            // 把动作判断结果一并返回给上层
+            action: actionDecision.action,
+            actionWorkOrderId: actionDecision.workOrderId,
+            actionTriggered: actionDecision.triggered,
+            actionReason: actionDecision.reason,
         }
     });
+};
+
+const extractSystemInfo = (messages: AIMessage[]): string => {
+    for (const msg of messages) {
+        if (msg.role === AIMessageRole.SYSTEM) {
+            return String(msg.content || '');
+        }
+    }
+    return '';
+};
+
+const decideWorkOrderAction = async (
+    provider: string,
+    request: AIRequest,
+    lastUserMessage: string
+): Promise<WorkOrderActionDecision> => {
+    const systemInfo = extractSystemInfo(request.messages);
+
+    const classifyRequest: AIRequest = {
+        messages: [
+            {
+                role: AIMessageRole.SYSTEM,
+                content:
+`你是工单动作识别助手。
+只根据用户输入和工单信息判断是否需要触发以下动作之一：
+- FINISH_WORK_ORDER：将工单状态改为“已完成”
+- ACCEPT_WORK_ORDER：将工单状态改为“执行中 / 接单”
+- CANCEL_WORK_ORDER：将工单状态改为“已取消”
+如果都不需要触发，则返回 NONE。
+严格输出 JSON，不能输出解释或多余文字。
+JSON 结构如下（字段名必须一致）：
+{"action":"FINISH_WORK_ORDER" 或 "ACCEPT_WORK_ORDER" 或 "CANCEL_WORK_ORDER" 或 "NONE","workOrderId":数字或null,"reason":"简单中文原因"}`,
+            },
+            {
+                role: AIMessageRole.USER,
+                content:
+                    `用户刚才的输入：
+${lastUserMessage}
+
+工单关键信息（如果有）：
+${systemInfo}
+
+请根据以上内容判断：
+- 如果用户明确希望将当前工单状态改为“已完成”，则 action 用 "FINISH_WORK_ORDER"
+- 如果用户明确希望“接单/开始执行”该工单，则 action 用 "ACCEPT_WORK_ORDER"
+- 如果用户明确希望“取消/作废”该工单，则 action 用 "CANCEL_WORK_ORDER"
+- 从工单信息中解析出工单ID（找“工单ID：<数字>”）；解析不到则 workOrderId 为 null。
+- 其他情况一律返回 {"action":"NONE","workOrderId":null,"reason":"..."}。`,
+            },
+        ],
+        model: request.model,
+    };
+
+    const classifyResp = await AIService.chat(provider, classifyRequest);
+    let parsed: any;
+    try {
+        parsed = JSON.parse(classifyResp.content);
+    } catch (e) {
+        logger.warn({ content: classifyResp.content }, 'parse work order action json failed');
+        return {
+            action: 'NONE',
+            workOrderId: null,
+            triggered: false,
+        };
+    }
+
+    if (!parsed || typeof parsed !== 'object') {
+        return {
+            action: 'NONE',
+            workOrderId: null,
+            triggered: false,
+        };
+    }
+    const action = String(parsed.action || '').toUpperCase();
+    const workOrderId = parsed.workOrderId != null ? Number(parsed.workOrderId) : NaN;
+    logger.info({ action, workOrderId, reason: parsed.reason }, 'work order action decision');
+
+    if (!Number.isNaN(workOrderId) && workOrderId > 0) {
+        if (action === 'FINISH_WORK_ORDER') {
+            await tryFinishWorkOrder(workOrderId, '');
+            return {
+                action: 'FINISH_WORK_ORDER',
+                workOrderId,
+                triggered: true,
+                reason: parsed.reason,
+            };
+        }
+        if (action === 'ACCEPT_WORK_ORDER') {
+            await tryAcceptWorkOrder(workOrderId);
+            return {
+                action: 'ACCEPT_WORK_ORDER',
+                workOrderId,
+                triggered: true,
+                reason: parsed.reason,
+            };
+        }
+        if (action === 'CANCEL_WORK_ORDER') {
+            await tryCancelWorkOrder(workOrderId, parsed.reason || '');
+            return {
+                action: 'CANCEL_WORK_ORDER',
+                workOrderId,
+                triggered: true,
+                reason: parsed.reason,
+            };
+        }
+    }
+
+    return {
+        action: 'NONE',
+        workOrderId: Number.isNaN(workOrderId) ? null : workOrderId,
+        triggered: false,
+        reason: parsed.reason,
+    };
+};
+
+const tryFinishWorkOrder = async (workOrderId: number, resultDesc: string) => {
+    const baseUrl = Config.integration?.java?.baseUrl;
+    const secret = Config.integration?.java?.callbackSecret;
+    if (!baseUrl || !secret) {
+        logger.debug('skip java finish callback because baseUrl or secret not set', { baseUrlPresent: !!baseUrl, secretPresent: !!secret });
+        return;
+    }
+    const url = baseUrl.replace(/\/+$/, '') + '/garden/workOrder/ai/finish';
+    logger.info({ workOrderId, url }, 'calling java finish work order callback');
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-AI-SECRET': secret,
+        },
+        body: JSON.stringify({
+            workOrderId,
+            resultDesc: (resultDesc || '').slice(0, 2000),
+        }),
+    });
+    if (!resp.ok) {
+        const t = await resp.text();
+        throw new Error(`java finish failed: ${resp.status} ${t}`);
+    }
+    logger.info({ workOrderId }, 'java finish work order callback success');
+};
+
+const tryAcceptWorkOrder = async (workOrderId: number) => {
+    const baseUrl = Config.integration?.java?.baseUrl;
+    const secret = Config.integration?.java?.callbackSecret;
+    if (!baseUrl || !secret) {
+        logger.debug('skip java accept callback because baseUrl or secret not set', { baseUrlPresent: !!baseUrl, secretPresent: !!secret });
+        return;
+    }
+    const url = baseUrl.replace(/\/+$/, '') + '/garden/workOrder/ai/accept';
+    logger.info({ workOrderId, url }, 'calling java accept work order callback');
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-AI-SECRET': secret,
+        },
+        body: JSON.stringify({
+            workOrderId,
+        }),
+    });
+    if (!resp.ok) {
+        const t = await resp.text();
+        throw new Error(`java accept failed: ${resp.status} ${t}`);
+    }
+    logger.info({ workOrderId }, 'java accept work order callback success');
+};
+
+const tryCancelWorkOrder = async (workOrderId: number, reason: string) => {
+    const baseUrl = Config.integration?.java?.baseUrl;
+    const secret = Config.integration?.java?.callbackSecret;
+    if (!baseUrl || !secret) {
+        logger.debug('skip java cancel callback because baseUrl or secret not set', { baseUrlPresent: !!baseUrl, secretPresent: !!secret });
+        return;
+    }
+    const url = baseUrl.replace(/\/+$/, '') + '/garden/workOrder/ai/cancel';
+    logger.info({ workOrderId, url }, 'calling java cancel work order callback');
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-AI-SECRET': secret,
+        },
+        body: JSON.stringify({
+            workOrderId,
+            reason: (reason || '').slice(0, 500),
+        }),
+    });
+    if (!resp.ok) {
+        const t = await resp.text();
+        throw new Error(`java cancel failed: ${resp.status} ${t}`);
+    }
+    logger.info({ workOrderId }, 'java cancel work order callback success');
 };
 
 router.post('/chat', async (req: Request, res: Response) => {

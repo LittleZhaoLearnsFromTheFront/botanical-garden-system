@@ -52,3 +52,16 @@ export function changeWorkOrderStatus(data) {
   })
 }
 
+// 工单智能辅助（AI 建议/问答）
+export function aiAssistWorkOrder(data) {
+  return request({
+    url: '/garden/workOrder/ai/assist',
+    method: 'post',
+    data: data,
+    // AI 调用可能较慢，单独放宽超时时间
+    timeout: 60000,
+    // 由调用方自行处理错误提示，避免重复弹窗
+    showErrorMessage: false
+  })
+}
+

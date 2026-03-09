@@ -8,6 +8,12 @@ const config = YAML.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
 export default { ...config } as {
     server: { name: string; port: number; },
     logger: { level: string; },
+    integration?: {
+        java?: {
+            baseUrl: string;
+            callbackSecret?: string;
+        }
+    },
     ai?: {
         providers: {
             [key: string]: {

@@ -2,12 +2,7 @@
   <div class="app-container">
     <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" v-show="showSearch" label-width="68px">
       <el-form-item label="标题" prop="title">
-        <el-input
-          v-model="queryParams.title"
-          placeholder="请输入标题"
-          clearable
-          @keyup.enter.native="handleQuery"
-        />
+        <el-input v-model="queryParams.title" placeholder="请输入标题" clearable @keyup.enter.native="handleQuery" />
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-select v-model="queryParams.status" placeholder="状态" clearable>
@@ -36,52 +31,27 @@
     <el-row :gutter="10" class="mb8">
       <template v-if="!isMyPage">
         <el-col :span="1.5">
-          <el-button
-            type="primary"
-            plain
-            icon="el-icon-plus"
-            size="mini"
-            @click="handleAdd"
-            v-hasPermi="['garden:workOrder:add']"
-          >新增</el-button>
+          <el-button type="primary" plain icon="el-icon-plus" size="mini" @click="handleAdd"
+            v-hasPermi="['garden:workOrder:add']">新增</el-button>
         </el-col>
         <el-col :span="1.5">
-          <el-button
-            type="success"
-            plain
-            icon="el-icon-edit"
-            size="mini"
-            :disabled="single"
-            @click="handleUpdate"
-            v-hasPermi="['garden:workOrder:edit']"
-          >修改</el-button>
+          <el-button type="success" plain icon="el-icon-edit" size="mini" :disabled="single" @click="handleUpdate"
+            v-hasPermi="['garden:workOrder:edit']">修改</el-button>
         </el-col>
         <el-col :span="1.5">
-          <el-button
-            type="danger"
-            plain
-            icon="el-icon-delete"
-            size="mini"
-            :disabled="multiple"
-            @click="handleDelete"
-            v-hasPermi="['garden:workOrder:remove']"
-          >删除</el-button>
+          <el-button type="danger" plain icon="el-icon-delete" size="mini" :disabled="multiple" @click="handleDelete"
+            v-hasPermi="['garden:workOrder:remove']">删除</el-button>
         </el-col>
         <el-col :span="1.5">
-          <el-button
-            type="warning"
-            plain
-            icon="el-icon-download"
-            size="mini"
-            @click="handleExport"
-            v-hasPermi="['garden:workOrder:export']"
-          >导出</el-button>
+          <el-button type="warning" plain icon="el-icon-download" size="mini" @click="handleExport"
+            v-hasPermi="['garden:workOrder:export']">导出</el-button>
         </el-col>
       </template>
       <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
-    <el-table v-loading="loading" :data="workOrderList" @selection-change="handleSelectionChange">
+    <el-table ref="workOrderTable" v-loading="loading" :data="workOrderList" @selection-change="handleSelectionChange"
+      @row-click="handleRowClick">
       <el-table-column type="selection" width="55" align="center" />
       <el-table-column label="标题" align="center" prop="title" min-width="180" />
       <el-table-column label="任务类型" align="center" prop="taskType" width="120">
@@ -117,57 +87,43 @@
       </el-table-column>
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="300">
         <template slot-scope="scope">
-          <el-button
-            v-if="!isMyPage"
-            size="mini"
-            type="text"
-            icon="el-icon-edit"
-            @click="handleUpdate(scope.row)"
-            v-hasPermi="['garden:workOrder:edit']"
-          >修改</el-button>
-          <el-button
-            v-if="!isMyPage"
-            size="mini"
-            type="text"
-            icon="el-icon-delete"
-            @click="handleDelete(scope.row)"
-            v-hasPermi="['garden:workOrder:remove']"
-          >删除</el-button>
-          <el-button
-            v-if="scope.row.status === '0'"
-            size="mini"
-            type="text"
-            icon="el-icon-circle-check"
-            @click="acceptWorkOrder(scope.row)"
-            v-hasPermi="['garden:workOrder:execute']"
-          >接单</el-button>
-          <el-button
-            v-if="scope.row.status === '1'"
-            size="mini"
-            type="text"
-            icon="el-icon-finished"
-            @click="finishWorkOrder(scope.row)"
-            v-hasPermi="['garden:workOrder:execute']"
-          >完成</el-button>
-          <el-button
-            v-if="scope.row.status === '0' || scope.row.status === '1'"
-            size="mini"
-            type="text"
-            icon="el-icon-close"
-            @click="cancelWorkOrder(scope.row)"
-            v-hasPermi="['garden:workOrder:execute']"
-          >取消</el-button>
+          <el-button size="mini" type="text" icon="el-icon-magic-stick"
+            @click.stop="openAiAssist(scope.row)">智能辅助</el-button>
+          <el-button v-if="!isMyPage" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)"
+            v-hasPermi="['garden:workOrder:edit']">修改</el-button>
+          <el-button v-if="!isMyPage" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)"
+            v-hasPermi="['garden:workOrder:remove']">删除</el-button>
+          <el-button v-if="scope.row.status === '0'" size="mini" type="text" icon="el-icon-circle-check"
+            @click="acceptWorkOrder(scope.row)" v-hasPermi="['garden:workOrder:execute']">接单</el-button>
+          <el-button v-if="scope.row.status === '1'" size="mini" type="text" icon="el-icon-finished"
+            @click="finishWorkOrder(scope.row)" v-hasPermi="['garden:workOrder:execute']">完成</el-button>
+          <el-button v-if="scope.row.status === '0' || scope.row.status === '1'" size="mini" type="text"
+            icon="el-icon-close" @click="cancelWorkOrder(scope.row)"
+            v-hasPermi="['garden:workOrder:execute']">取消</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <pagination
-      v-show="total>0"
-      :total="total"
-      :page.sync="queryParams.pageNum"
-      :limit.sync="queryParams.pageSize"
-      @pagination="getList"
-    />
+    <pagination v-show="total > 0" :total="total" :page.sync="queryParams.pageNum" :limit.sync="queryParams.pageSize"
+      @pagination="getList" />
+
+    <el-drawer title="工单智能辅助" :visible.sync="aiAssistOpen" direction="rtl" size="420px" append-to-body>
+      <div class="ai-assist">
+        <el-alert v-if="aiAssistWorkOrderId" :title="`当前工单ID：${aiAssistWorkOrderId}`" type="info" :closable="false"
+          show-icon class="mb8" />
+
+        <el-input v-model="aiAssistQuestion" type="textarea" :rows="4" placeholder="输入你的问题（例如：生成执行步骤/风险点/材料清单/验收标准）" />
+
+        <div class="ai-assist-actions">
+          <el-button type="primary" :loading="aiAssistLoading" @click="sendAiAssist()">发送</el-button>
+          <el-button :disabled="aiAssistLoading" @click="aiAssistQuestion = defaultAiQuestion()">一键生成建议</el-button>
+          <el-button :disabled="aiAssistLoading" @click="clearAiAssist()">清空</el-button>
+        </div>
+
+        <el-divider content-position="left">返回内容</el-divider>
+        <el-input v-model="aiAssistAnswer" type="textarea" :rows="18" readonly placeholder="这里会显示 AI 返回内容" />
+      </div>
+    </el-drawer>
 
     <el-dialog :title="title" :visible.sync="open" width="750px" append-to-body>
       <el-form ref="form" :model="form" :rules="rules" label-width="90px">
@@ -176,9 +132,10 @@
         </el-form-item>
         <el-row>
           <el-col :span="12">
-        <el-form-item label="任务类型" prop="taskType">
-          <el-select v-model="form.taskType" placeholder="任务类型" clearable>
-            <el-option v-for="opt in currentTaskTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+            <el-form-item label="任务类型" prop="taskType">
+              <el-select v-model="form.taskType" placeholder="任务类型" clearable>
+                <el-option v-for="opt in currentTaskTypeOptions" :key="opt.value" :label="opt.label"
+                  :value="opt.value" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -229,26 +186,14 @@
         <el-row>
           <el-col :span="12">
             <el-form-item label="计划时间" prop="planTime">
-              <el-date-picker
-                v-model="form.planTime"
-                type="datetime"
-                value-format="yyyy-MM-dd HH:mm:ss"
-                placeholder="选择计划时间"
-                clearable
-                style="width: 100%"
-              />
+              <el-date-picker v-model="form.planTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss"
+                placeholder="选择计划时间" clearable style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="截止时间" prop="deadline">
-              <el-date-picker
-                v-model="form.deadline"
-                type="datetime"
-                value-format="yyyy-MM-dd HH:mm:ss"
-                placeholder="选择截止时间"
-                clearable
-                style="width: 100%"
-              />
+              <el-date-picker v-model="form.deadline" type="datetime" value-format="yyyy-MM-dd HH:mm:ss"
+                placeholder="选择截止时间" clearable style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -269,7 +214,7 @@
 </template>
 
 <script>
-import { listWorkOrder, getWorkOrder, delWorkOrder, addWorkOrder, updateWorkOrder, changeWorkOrderStatus } from "@/api/garden/workOrder"
+import { listWorkOrder, getWorkOrder, delWorkOrder, addWorkOrder, updateWorkOrder, changeWorkOrderStatus, aiAssistWorkOrder } from "@/api/garden/workOrder"
 import { treeselectArea } from "@/api/garden/area"
 import { listPlant } from "@/api/garden/plant"
 import { listDevice } from "@/api/garden/device"
@@ -367,6 +312,13 @@ export default {
           }
         ]
       }
+      ,
+      // AI 辅助
+      aiAssistOpen: false,
+      aiAssistLoading: false,
+      aiAssistWorkOrderId: undefined,
+      aiAssistQuestion: "",
+      aiAssistAnswer: ""
     }
   },
   created() {
@@ -519,6 +471,56 @@ export default {
       this.single = selection.length !== 1
       this.multiple = !selection.length
     },
+    handleRowClick(row) {
+      // 行点击保留原有多选行为，不再用于 AI 选择
+    },
+    defaultAiQuestion() {
+      return "请根据工单信息给出执行建议与注意事项，并输出可执行的步骤清单。"
+    },
+    openAiAssist(row) {
+      if (!row || !row.workOrderId) {
+        this.$modal.msgWarning("无法获取工单ID")
+        return
+      }
+      this.aiAssistWorkOrderId = row.workOrderId
+      if (!this.aiAssistQuestion) {
+        this.aiAssistQuestion = this.defaultAiQuestion()
+      }
+      this.aiAssistOpen = true
+    },
+    clearAiAssist() {
+      this.aiAssistQuestion = ""
+      this.aiAssistAnswer = ""
+    },
+    sendAiAssist() {
+      if (!this.aiAssistWorkOrderId) {
+        this.$modal.msgWarning("未选择工单")
+        return
+      }
+      const q = (this.aiAssistQuestion || "").trim()
+      if (!q) {
+        this.$modal.msgWarning("请输入问题")
+        return
+      }
+      this.aiAssistLoading = true
+      aiAssistWorkOrder({ workOrderId: this.aiAssistWorkOrderId, question: q })
+        .then(res => {
+          // 后端返回：{ content, raw }
+          const data = res && res.data ? res.data : res
+          if (data && data.content) {
+            this.aiAssistAnswer = data.content
+          } else {
+            this.aiAssistAnswer = typeof data === "string" ? data : JSON.stringify(data, null, 2)
+          }
+        })
+        .catch(err => {
+          const msg = (err && err.message) ? err.message : "调用失败"
+          this.aiAssistAnswer = `调用失败：${msg}`
+        })
+        .finally(() => {
+          this.aiAssistLoading = false
+        })
+    },
     handleAdd() {
       this.reset()
       this.open = true
@@ -573,7 +575,7 @@ export default {
       }).then(() => {
         this.getList()
         this.$modal.msgSuccess("删除成功")
-      }).catch(() => {})
+      }).catch(() => { })
     },
     acceptWorkOrder(row) {
       this.$modal.confirm(`是否接单：${row.title}？`).then(() => {
@@ -581,7 +583,7 @@ export default {
       }).then(() => {
         this.$modal.msgSuccess("接单成功")
         this.getList()
-      }).catch(() => {})
+      }).catch(() => { })
     },
     finishWorkOrder(row) {
       this.$prompt("请输入执行结果说明", "完成工单", {
@@ -594,7 +596,7 @@ export default {
       }).then(() => {
         this.$modal.msgSuccess("完成成功")
         this.getList()
-      }).catch(() => {})
+      }).catch(() => { })
     },
     cancelWorkOrder(row) {
       this.$modal.confirm(`是否取消工单：${row.title}？`).then(() => {
@@ -602,7 +604,7 @@ export default {
       }).then(() => {
         this.$modal.msgSuccess("取消成功")
         this.getList()
-      }).catch(() => {})
+      }).catch(() => { })
     },
     handleExport() {
       this.download('/garden/workOrder/export', {
@@ -613,3 +615,40 @@ export default {
 }
 </script>
 
+<style scoped>
+.ai-assist-entry {
+  position: fixed;
+  right: 0;
+  top: 40%;
+  z-index: 2000;
+  padding: 14px 10px;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  border-right: none;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  user-select: none;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 2px;
+  color: #303133;
+}
+
+.ai-assist-entry:hover {
+  color: #409eff;
+  border-color: #c6e2ff;
+}
+
+.ai-assist {
+  padding: 12px 16px;
+}
+
+.ai-assist-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+</style>

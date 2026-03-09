@@ -5,6 +5,13 @@ server:
 logger:
   level: debug
 
+integration:
+  java:
+    # Java 后端地址（RuoYi）
+    baseUrl: http://localhost:8080
+    # 回调密钥（与 Java application.yml 的 ai-system.callbackSecret 一致）
+    callbackSecret: ${JAVA_AI_SECRET}
+
 ai:
   providers:
     # DeepSeek - 使用 OpenAI 兼容接口
