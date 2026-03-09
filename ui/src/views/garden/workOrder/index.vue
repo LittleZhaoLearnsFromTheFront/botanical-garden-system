@@ -519,6 +519,8 @@ export default {
         })
         .finally(() => {
           this.aiAssistLoading = false
+          // AI 可能触发了工单状态变更（完成/接单/取消），刷新列表
+          this.getList()
         })
     },
     handleAdd() {

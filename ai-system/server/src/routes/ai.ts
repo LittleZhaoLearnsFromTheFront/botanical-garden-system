@@ -161,6 +161,7 @@ type WorkOrderActionDecision = {
     workOrderId: number | null;
     triggered: boolean;
     reason?: string;
+    error?: string;
 };
 
 const handleChatRequest = async (userId: string, provider: string, body: any, res: Response) => {
@@ -208,15 +209,18 @@ const handleChatRequest = async (userId: string, provider: string, body: any, re
 
     // 如果已经由动作判断触发了实际操作（例如完成工单），则直接返回简要结果，不再生成普通对话回答
     if (enableWorkOrderAction && actionDecision.triggered) {
-        let content = '已根据你的指令执行了相应操作。请刷新页面！';
+        let content = '已根据你的指令执行了相应操作。';
         if (actionDecision.workOrderId) {
             if (actionDecision.action === 'FINISH_WORK_ORDER') {
-                content = `已根据你的指令，将工单【${actionDecision.workOrderId}】标记为完成。请刷新页面！`;
+                content = `已根据你的指令，将工单【${actionDecision.workOrderId}】标记为完成。`;
             } else if (actionDecision.action === 'ACCEPT_WORK_ORDER') {
-                content = `已为你接单工单【${actionDecision.workOrderId}】。请刷新页面！`;
+                content = `已为你接单工单【${actionDecision.workOrderId}】。`;
             } else if (actionDecision.action === 'CANCEL_WORK_ORDER') {
-                content = `已为你取消工单【${actionDecision.workOrderId}】。请刷新页面！`;
+                content = `已为你取消工单【${actionDecision.workOrderId}】。`;
             }
+        }
+        if (actionDecision.error) {
+            content = `执行失败：${actionDecision.error}`;
         }
 
         await recordMessage(
@@ -303,7 +307,7 @@ const decideWorkOrderAction = async (
             {
                 role: AIMessageRole.SYSTEM,
                 content:
-`你是工单动作识别助手。
+                    `你是工单动作识别助手。
 只根据用户输入和工单信息判断是否需要触发以下动作之一：
 - FINISH_WORK_ORDER：将工单状态改为“已完成”
 - ACCEPT_WORK_ORDER：将工单状态改为“执行中 / 接单”
@@ -359,30 +363,45 @@ ${systemInfo}
 
     if (!Number.isNaN(workOrderId) && workOrderId > 0) {
         if (action === 'FINISH_WORK_ORDER') {
-            await tryFinishWorkOrder(workOrderId, '');
+            const res = await tryFinishWorkOrder(workOrderId, '');
+            let err = undefined
+            if (res.code === 500) {
+                err = res.msg
+            }
             return {
                 action: 'FINISH_WORK_ORDER',
                 workOrderId,
                 triggered: true,
                 reason: parsed.reason,
+                error: err,
             };
         }
         if (action === 'ACCEPT_WORK_ORDER') {
-            await tryAcceptWorkOrder(workOrderId);
+            const res = await tryAcceptWorkOrder(workOrderId);
+            let err = undefined
+            if (res.code === 500) {
+                err = res.msg
+            }
             return {
                 action: 'ACCEPT_WORK_ORDER',
                 workOrderId,
                 triggered: true,
                 reason: parsed.reason,
+                error: err,
             };
         }
         if (action === 'CANCEL_WORK_ORDER') {
-            await tryCancelWorkOrder(workOrderId, parsed.reason || '');
+            const res = await tryCancelWorkOrder(workOrderId, parsed.reason || '');
+            let err = undefined
+            if (res.code === 500) {
+                err = res.msg
+            }
             return {
                 action: 'CANCEL_WORK_ORDER',
                 workOrderId,
                 triggered: true,
                 reason: parsed.reason,
+                error: err,
             };
         }
     }
@@ -420,6 +439,7 @@ const tryFinishWorkOrder = async (workOrderId: number, resultDesc: string) => {
         throw new Error(`java finish failed: ${resp.status} ${t}`);
     }
     logger.info({ workOrderId }, 'java finish work order callback success');
+    return await resp.json();
 };
 
 const tryAcceptWorkOrder = async (workOrderId: number) => {
@@ -446,6 +466,7 @@ const tryAcceptWorkOrder = async (workOrderId: number) => {
         throw new Error(`java accept failed: ${resp.status} ${t}`);
     }
     logger.info({ workOrderId }, 'java accept work order callback success');
+    return await resp.json();
 };
 
 const tryCancelWorkOrder = async (workOrderId: number, reason: string) => {
@@ -473,6 +494,7 @@ const tryCancelWorkOrder = async (workOrderId: number, reason: string) => {
         throw new Error(`java cancel failed: ${resp.status} ${t}`);
     }
     logger.info({ workOrderId }, 'java cancel work order callback success');
+    return await resp.json();
 };
 
 router.post('/chat', async (req: Request, res: Response) => {
