@@ -62,6 +62,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="status != null and status != ''">
                 and w.status = #{status}
             </if>
+            <if test="areaId != null">
+                and w.area_id = #{areaId}
+            </if>
+            <if test="plantId != null">
+                and w.plant_id = #{plantId}
+            </if>
+            <if test="deviceId != null">
+                and w.device_id = #{deviceId}
+            </if>
             <if test="executorId != null">
                 and w.executor_id = #{executorId}
             </if>

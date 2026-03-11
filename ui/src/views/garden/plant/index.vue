@@ -106,8 +106,15 @@
           <span>{{ parseTime(scope.row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="180">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="260">
         <template slot-scope="scope">
+          <el-button
+            size="mini"
+            type="text"
+            icon="el-icon-magic-stick"
+            @click="goCareAdvice(scope.row)"
+            v-hasPermi="['garden:careAdvice:list']"
+          >养护建议</el-button>
           <el-button
             size="mini"
             type="text"
@@ -304,6 +311,10 @@ export default {
     healthStatusLabel(val) {
       const hit = this.healthStatusOptions.find(x => x.value === (val == null ? "" : String(val)))
       return hit ? hit.label : "-"
+    },
+    goCareAdvice(row) {
+      if (!row || !row.plantId) return
+      this.$router.push({ path: '/plant/careAdvice', query: { plantId: row.plantId } })
     },
     getTreeselect() {
       treeselectArea().then(res => {

@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.garden.GardenCareAdviceMapper">
+
+    <resultMap id="GardenCareAdviceResult" type="GardenCareAdvice">
+        <id     property="adviceId"      column="advice_id"/>
+        <result property="targetType"    column="target_type"/>
+        <result property="targetId"      column="target_id"/>
+        <result property="adviceType"    column="advice_type"/>
+        <result property="title"         column="title"/>
+        <result property="contentMd"     column="content_md"/>
+        <result property="contentJson"   column="content_json"/>
+        <result property="evidenceJson"  column="evidence_json"/>
+        <result property="riskLevel"     column="risk_level"/>
+        <result property="confidence"    column="confidence"/>
+        <result property="status"        column="status"/>
+        <result property="reviewBy"      column="review_by"/>
+        <result property="reviewTime"    column="review_time"/>
+        <result property="reviewNote"    column="review_note"/>
+        <result property="validFrom"     column="valid_from"/>
+        <result property="validTo"       column="valid_to"/>
+        <result property="aiProvider"    column="ai_provider"/>
+        <result property="aiModel"       column="ai_model"/>
+        <result property="promptVersion" column="prompt_version"/>
+        <result property="linkedWorkOrderId" column="linked_work_order_id"/>
+        <result property="createBy"      column="create_by"/>
+        <result property="createTime"    column="create_time"/>
+        <result property="updateBy"      column="update_by"/>
+        <result property="updateTime"    column="update_time"/>
+        <result property="remark"        column="remark"/>
+        <result property="plantName"     column="plant_name"/>
+        <result property="areaName"      column="area_name"/>
+    </resultMap>
+
+    <sql id="selectCareAdviceVo">
+        select a.advice_id, a.target_type, a.target_id, a.advice_type, a.title,
+               a.content_md, a.content_json, a.evidence_json, a.risk_level, a.confidence,
+               a.status, a.review_by, a.review_time, a.review_note, a.valid_from, a.valid_to,
+               a.ai_provider, a.ai_model, a.prompt_version, a.linked_work_order_id,
+               a.create_by, a.create_time, a.update_by, a.update_time, a.remark,
+               p.plant_name, ar.area_name
+        from garden_care_advice a
+        left join garden_plant p on a.target_type = 'PLANT' and p.plant_id = a.target_id and p.del_flag = '0'
+        left join garden_area ar on ar.area_id = p.area_id and ar.del_flag = '0'
+    </sql>
+
+    <select id="selectCareAdviceById" parameterType="Long" resultMap="GardenCareAdviceResult">
+        <include refid="selectCareAdviceVo"/>
+        where a.advice_id = #{adviceId}
+    </select>
+
+    <select id="selectCareAdviceList" parameterType="GardenCareAdvice" resultMap="GardenCareAdviceResult">
+        <include refid="selectCareAdviceVo"/>
+        <where>
+            <if test="targetType != null and targetType != ''">
+                and a.target_type = #{targetType}
+            </if>
+            <if test="targetId != null">
+                and a.target_id = #{targetId}
+            </if>
+            <if test="adviceType != null and adviceType != ''">
+                and a.advice_type = #{adviceType}
+            </if>
+            <if test="status != null and status != ''">
+                and a.status = #{status}
+            </if>
+            <if test="title != null and title != ''">
+                and a.title like concat('%', #{title}, '%')
+            </if>
+            <if test="plantName != null and plantName != ''">
+                and p.plant_name like concat('%', #{plantName}, '%')
+            </if>
+            <if test="riskLevel != null and riskLevel != ''">
+                and a.risk_level = #{riskLevel}
+            </if>
+        </where>
+        order by a.advice_id desc
+    </select>
+
+    <select id="selectLatestPublishedByTarget" resultMap="GardenCareAdviceResult">
+        <include refid="selectCareAdviceVo"/>
+        where a.target_type = #{param1} and a.target_id = #{param2}
+          and a.status = '2'
+        order by a.review_time desc, a.advice_id desc
+        limit 1
+    </select>
+
+    <insert id="insertCareAdvice" parameterType="GardenCareAdvice" useGeneratedKeys="true" keyProperty="adviceId">
+        insert into garden_care_advice(
+          target_type, target_id, advice_type, title,
+          content_md, content_json, evidence_json,
+          risk_level, confidence, status,
+          ai_provider, ai_model, prompt_version,
+          linked_work_order_id, valid_from, valid_to,
+          create_by, create_time, remark
+        ) values (
+          #{targetType}, #{targetId}, #{adviceType}, #{title},
+          #{contentMd}, #{contentJson}, #{evidenceJson},
+          #{riskLevel}, #{confidence}, #{status},
+          #{aiProvider}, #{aiModel}, #{promptVersion},
+          #{linkedWorkOrderId}, #{validFrom}, #{validTo},
+          #{createBy}, sysdate(), #{remark}
+        )
+    </insert>
+
+    <update id="updateCareAdvice" parameterType="GardenCareAdvice">
+        update garden_care_advice
+        <set>
+            <if test="targetType != null and targetType != ''">target_type = #{targetType},</if>
+            <if test="targetId != null">target_id = #{targetId},</if>
+            <if test="adviceType != null">advice_type = #{adviceType},</if>
+            <if test="title != null">title = #{title},</if>
+            <if test="contentMd != null">content_md = #{contentMd},</if>
+            <if test="contentJson != null">content_json = #{contentJson},</if>
+            <if test="evidenceJson != null">evidence_json = #{evidenceJson},</if>
+            <if test="riskLevel != null">risk_level = #{riskLevel},</if>
+            <if test="confidence != null">confidence = #{confidence},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="reviewBy != null">review_by = #{reviewBy},</if>
+            <if test="reviewTime != null">review_time = #{reviewTime},</if>
+            <if test="reviewNote != null">review_note = #{reviewNote},</if>
+            <if test="validFrom != null">valid_from = #{validFrom},</if>
+            <if test="validTo != null">valid_to = #{validTo},</if>
+            <if test="aiProvider != null">ai_provider = #{aiProvider},</if>
+            <if test="aiModel != null">ai_model = #{aiModel},</if>
+            <if test="promptVersion != null">prompt_version = #{promptVersion},</if>
+            <if test="linkedWorkOrderId != null">linked_work_order_id = #{linkedWorkOrderId},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where advice_id = #{adviceId}
+    </update>
+
+    <delete id="deleteCareAdviceById" parameterType="Long">
+        delete from garden_care_advice where advice_id = #{adviceId}
+    </delete>
+
+    <delete id="deleteCareAdviceByIds" parameterType="Long">
+        delete from garden_care_advice where advice_id in
+        <foreach item="adviceId" collection="array" open="(" separator="," close=")">
+            #{adviceId}
+        </foreach>
+    </delete>
+
+</mapper>
+

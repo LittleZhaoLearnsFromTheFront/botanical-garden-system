@@ -32,6 +32,9 @@
     <select id="selectPlantLogList" parameterType="GardenPlantLog" resultMap="GardenPlantLogResult">
         <include refid="selectPlantLogVo"/>
         <where>
+            <if test="plantId != null">
+                and l.plant_id = #{plantId}
+            </if>
             <if test="plantName != null and plantName != ''">
                 and p.plant_name like concat('%', #{plantName}, '%')
             </if>

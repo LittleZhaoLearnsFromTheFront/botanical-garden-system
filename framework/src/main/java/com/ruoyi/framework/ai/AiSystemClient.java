@@ -36,6 +36,15 @@ public class AiSystemClient
      */
     public JSONObject chat(String userId, String sessionTitle, List<JSONObject> messages)
     {
+        return chat(userId, sessionTitle, messages, true);
+    }
+
+    /**
+     * @param enableWorkOrderAction 是否启用工单动作识别（完成/接单/取消等）。
+     *                             仅工单场景建议开启；其他业务（如养护建议生成）建议关闭，避免误触发回调。
+     */
+    public JSONObject chat(String userId, String sessionTitle, List<JSONObject> messages, boolean enableWorkOrderAction)
+    {
         String baseUrl = normalizeBaseUrl(props.getBaseUrl());
         JSONObject session = ensureSession(userId, baseUrl, sessionTitle);
         if (session == null || !Boolean.TRUE.equals(session.getBoolean("success")))
@@ -68,8 +77,7 @@ public class AiSystemClient
         {
             payload.put("temperature", props.getTemperature());
         }
-        // 对工单场景默认开启动作判断（完成工单等）
-        payload.put("enableWorkOrderAction", Boolean.TRUE);
+        payload.put("enableWorkOrderAction", Boolean.valueOf(enableWorkOrderAction));
         payload.put("stream", false);
 
         HttpHeaders headers = new HttpHeaders();
